@@ -22,7 +22,7 @@ const (
 
 // Patcher interface for managing Kustomize patches and detecting updates
 type Patcher interface {
-	hasUpdates(ctx context.Context, kube client.Client, in []v1alpha1.ValueFromSource, s v1beta1.ConfigStatus) (bool, error)
+	hasUpdates(ctx context.Context, kube client.Client, in []v1alpha1.ValueFromSource, s v1alpha1.ConfigStatus) (bool, error)
 	patchGetter
 	patchHasher
 }

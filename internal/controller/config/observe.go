@@ -54,7 +54,7 @@ func generateObservation(in *config.Config) v1alpha1.ReleaseObservation {
 }
 
 // isUpToDate checks whether desired spec up to date with the observed state for a given config
-func isUpToDate(ctx context.Context, kube client.Client, in *v1alpha1.ConfigParameters, observed *config.Config, s v1alpha1.ConfigStatus) (bool, error) {
+func isUpToDate(ctx context.Context, kube client.Client, in *v1alpha1.ConfigParameters, observed *config.ConfigMap, s v1alpha1.ConfigStatus) (bool, error) {
 	if observed.Info == nil {
 		return false, errors.New(errConfigInfoNilInObservedRelease)
 	}
