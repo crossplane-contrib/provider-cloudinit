@@ -22,7 +22,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "cloud-init.crossplane.io"
+	Group   = "cloudinit.crossplane.io"
 	Version = "v1alpha1"
 )
 

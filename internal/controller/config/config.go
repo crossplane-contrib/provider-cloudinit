@@ -18,9 +18,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"cloud-init.sh/helm/v3/pkg/chart"
-	"cloud-init.sh/helm/v3/pkg/config"
-	"cloud-init.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v3/pkg/chart"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,10 +33,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane-contrib/provider-cloud-init/apis/config/v1alpha1"
-	cloud-initv1alpha1 "github.com/crossplane-contrib/provider-helm/apis/v1beta1"
-	"github.com/crossplane-contrib/provider-cloud-init/pkg/clients"
-	cloud-initClient "github.com/crossplane-contrib/provider-helm/pkg/clients/helm"
+	"github.com/crossplane-contrib/provider-cloudinit/apis/config/v1alpha1"
+	cloudinitv1alpha1 "github.com/crossplane-contrib/provider-cloudinit/apis/v1alpha1"
+	"github.com/crossplane-contrib/provider-cloudinit/pkg/clients"
+	cloudinitClient "github.com/crossplane-contrib/provider-cloudinit/pkg/clients/helm"
 )
 
 const (
@@ -47,20 +45,20 @@ const (
 	resyncPeriod     = 10 * time.Minute
 	reconcileTimeout = 10 * time.Minute
 
-	cloud-initConfigNameAnnotation      = "meta.helm.sh/config-name"
-	cloud-initConfigNamespaceAnnotation = "meta.helm.sh/config-namespace"
+	cloudinitConfigNameAnnotation      = "meta.helm.sh/config-name"
+	cloudinitConfigNamespaceAnnotation = "meta.helm.sh/config-namespace"
 )
 
 const (
-	errNotConfig                        = "managed resource is not a Release custom resource"
+	errNotConfig                         = "managed resource is not a Release custom resource"
 	errProviderConfigNotSet              = "provider config is not set"
 	errProviderNotRetrieved              = "provider could not be retrieved"
 	errCredSecretNotSet                  = "provider credentials secret is not set"
 	errNewKubernetesClient               = "cannot create new Kubernetes client"
 	errProviderSecretNotRetrieved        = "secret referred in provider could not be retrieved"
 	errProviderSecretValueForKeyNotFound = "value for key \"%s\" not found in provider credentials secret"
-	errFailedToGetLastConfig            = "failed to get last cloud-init config"
-	errLastConfigIsNil                  = "last cloud-init config is nil"
+	errFailedToGetLastConfig             = "failed to get last cloudinit config"
+	errLastConfigIsNil                   = "last cloudinit config is nil"
 	errFailedToCheckIfUpToDate           = "failed to check if config is up to date"
 	errFailedToInstall                   = "failed to install config"
 	errFailedToUpgrade                   = "failed to upgrade config"
@@ -85,12 +83,12 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ConfigGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			logger:          logger,
-			client:          mgr.GetClient(),
-			usage:           resource.NewProviderConfigUsageTracker(mgr.GetClient(), &cloud-initv1alpha1.ProviderConfigUsage{}),
-			newRestConfigFn: clients.NewRestConfig,
-			newKubeClientFn: clients.NewKubeClient,
-			newCloudInitClientFn: cloud-initClient.NewClient,
+			logger:               logger,
+			client:               mgr.GetClient(),
+			usage:                resource.NewProviderConfigUsageTracker(mgr.GetClient(), &cloudinitv1alpha1.ProviderConfigUsage{}),
+			newRestConfigFn:      clients.NewRestConfig,
+			newKubeClientFn:      clients.NewKubeClient,
+			newCloudInitClientFn: cloudinitClient.NewClient,
 		}),
 		managed.WithLogger(logger),
 		managed.WithTimeout(reconcileTimeout),
@@ -105,12 +103,12 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 }
 
 type connector struct {
-	logger          logging.Logger
-	client          client.Client
-	usage           resource.Tracker
-	newRestConfigFn func(kubeconfig []byte) (*rest.Config, error)
-	newKubeClientFn func(config *rest.Config) (client.Client, error)
-	newCloudInitClientFn func(log logging.Logger, config *rest.Config, namespace string, wait bool) (cloud-initClient.Client, error)
+	logger               logging.Logger
+	client               client.Client
+	usage                resource.Tracker
+	newRestConfigFn      func(kubeconfig []byte) (*rest.Config, error)
+	newKubeClientFn      func(config *rest.Config) (client.Client, error)
+	newCloudInitClientFn func(log logging.Logger, config *rest.Config, namespace string, wait bool) (cloudinitClient.Client, error)
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
@@ -122,7 +120,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 	l.Debug("Connecting")
 
-	p := &cloud-initv1alpha1.ProviderConfig{}
+	p := &cloudinitv1alpha1.ProviderConfig{}
 
 	if cr.GetProviderConfigReference() == nil {
 		return nil, errors.New(errProviderConfigNotSet)
@@ -180,24 +178,24 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errNewKubernetesClient)
 	}
 
-	return &cloud-initExternal{
+	return &cloudinitExternal{
 		logger:    l,
 		localKube: c.client,
 		kube:      k,
-		cloud-init:      h,
+		cloudinit: h,
 		patch:     newPatcher(),
 	}, nil
 }
 
-type cloud-initExternal struct {
+type cloudinitExternal struct {
 	logger    logging.Logger
 	localKube client.Client
 	kube      client.Client
-	cloud-init      helmClient.Client
+	cloudinit helmClient.Client
 	patch     Patcher
 }
 
-func (e *cloud-initExternal) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+func (e *cloudinitExternal) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1alpha1.Config)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotConfig)
@@ -205,7 +203,7 @@ func (e *cloud-initExternal) Observe(ctx context.Context, mg resource.Managed) (
 
 	e.logger.Debug("Observing")
 
-	rel, err := e.cloud-init.GetLastConfig(meta.GetExternalName(cr))
+	rel, err := e.cloudinit.GetLastConfig(meta.GetExternalName(cr))
 	if err == driver.ErrConfigNotFound {
 		return managed.ExternalObservation{
 			ResourceExists: false,
@@ -258,7 +256,7 @@ func (e *cloud-initExternal) Observe(ctx context.Context, mg resource.Managed) (
 
 type deployAction func(config string, chart *chart.Chart, vals map[string]interface{}, patches []ktype.Patch) (*release.Config, error)
 
-func (e *cloud-initExternal) deploy(ctx context.Context, cr *v1alpha1.Config, action deployAction) error {
+func (e *cloudinitExternal) deploy(ctx context.Context, cr *v1alpha1.Config, action deployAction) error {
 	cv, err := composeValuesFromSpec(ctx, e.localKube, cr.Spec.ForProvider.ValuesSpec)
 	if err != nil {
 		return errors.Wrap(err, errFailedToComposeValues)
@@ -274,7 +272,7 @@ func (e *cloud-initExternal) deploy(ctx context.Context, cr *v1alpha1.Config, ac
 		return errors.Wrap(err, errFailedToLoadPatches)
 	}
 
-	chart, err := e.cloud-init.PullAndLoadChart(&cr.Spec.ForProvider.Chart, creds)
+	chart, err := e.cloudinit.PullAndLoadChart(&cr.Spec.ForProvider.Chart, creds)
 	if err != nil {
 		return err
 	}
@@ -311,17 +309,17 @@ func (e *cloud-initExternal) deploy(ctx context.Context, cr *v1alpha1.Config, ac
 	return nil
 }
 
-func (e *cloud-initExternal) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+func (e *cloudinitExternal) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
 	cr, ok := mg.(*v1alpha1.Config)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotConfig)
 	}
 
 	e.logger.Debug("Creating")
-	return managed.ExternalCreation{}, errors.Wrap(e.deploy(ctx, cr, e.cloud-init.Install), errFailedToInstall)
+	return managed.ExternalCreation{}, errors.Wrap(e.deploy(ctx, cr, e.cloudinit.Install), errFailedToInstall)
 }
 
-func (e *cloud-initExternal) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+func (e *cloudinitExternal) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
 	cr, ok := mg.(*v1alpha1.Config)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotConfig)
@@ -337,20 +335,20 @@ func (e *cloud-initExternal) Update(ctx context.Context, mg resource.Managed) (m
 			// We need to uninstall to retry.
 			if cr.Status.AtProvider.Revision == 1 {
 				e.logger.Debug("Uninstalling")
-				return managed.ExternalUpdate{}, e.cloud-init.Uninstall(meta.GetExternalName(cr))
+				return managed.ExternalUpdate{}, e.cloudinit.Uninstall(meta.GetExternalName(cr))
 			}
 			e.logger.Debug("Rolling back to previous config version")
-			return managed.ExternalUpdate{}, e.cloud-init.Rollback(meta.GetExternalName(cr))
+			return managed.ExternalUpdate{}, e.cloudinit.Rollback(meta.GetExternalName(cr))
 		}
 		e.logger.Debug("Reached max rollback retries, will not retry")
 		return managed.ExternalUpdate{}, nil
 	}
 
 	e.logger.Debug("Updating")
-	return managed.ExternalUpdate{}, errors.Wrap(e.deploy(ctx, cr, e.cloud-init.Upgrade), errFailedToUpgrade)
+	return managed.ExternalUpdate{}, errors.Wrap(e.deploy(ctx, cr, e.cloudinit.Upgrade), errFailedToUpgrade)
 }
 
-func (e *cloud-initExternal) Delete(_ context.Context, mg resource.Managed) error {
+func (e *cloudinitExternal) Delete(_ context.Context, mg resource.Managed) error {
 	cr, ok := mg.(*v1alpha1.Config)
 	if !ok {
 		return errors.New(errNotConfig)
@@ -358,7 +356,7 @@ func (e *cloud-initExternal) Delete(_ context.Context, mg resource.Managed) erro
 
 	e.logger.Debug("Deleting")
 
-	return errors.Wrap(e.cloud-init.Uninstall(meta.GetExternalName(cr)), errFailedToUninstall)
+	return errors.Wrap(e.cloudinit.Uninstall(meta.GetExternalName(cr)), errFailedToUninstall)
 }
 
 func shouldRollBack(cr *v1alpha1.Config) bool {

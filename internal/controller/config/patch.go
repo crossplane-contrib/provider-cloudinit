@@ -12,7 +12,7 @@ import (
 	ktypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/yaml"
 
-	"github.com/crossplane-contrib/provider-cloud-init/apis/config/v1alpha1"
+	"github.com/crossplane-contrib/provider-cloudinit/apis/config/v1alpha1"
 )
 
 const (
@@ -47,7 +47,7 @@ type patch struct {
 	patchGetter
 }
 
-func (p patch) hasUpdates(ctx context.Context, kube client.Client, in []v1alpha1.ValueFromSource, s v1beta1.ConfigStatus) (bool, error) {
+func (p patch) hasUpdates(ctx context.Context, kube client.Client, in []v1alpha1.ValueFromSource, s v1alpha1.ConfigStatus) (bool, error) {
 	patches, err := p.getFromSpec(ctx, kube, in)
 	if err != nil {
 		return false, err

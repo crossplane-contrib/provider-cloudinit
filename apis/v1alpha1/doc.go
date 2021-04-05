@@ -13,6 +13,6 @@ limitations under the License.
 
 // Package v1alpha1 contains the core resources of the CloudInit provider.
 // +kubebuilder:object:generate=true
-// +groupName=cloud-init.crossplane.io
+// +groupName=cloudinit.crossplane.io
 // +versionName=v1alpha1
 package v1alpha1

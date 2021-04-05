@@ -21,22 +21,22 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"helm.sh/helm/v3/pkg/release"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pkg/errors"
-	"cloud-init.sh/helm/v3/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	"github.com/crossplane-contrib/provider-cloud-init/apis/config/v1alpha1"
+	"github.com/crossplane-contrib/provider-cloudinit/apis/config/v1alpha1"
 )
 
 const (
-	errConfigInfoNilInObservedRelease = "config info is nil in observed cloud-init release"
-	errChartNilInObservedConfig       = "chart field is nil in observed cloud-init config"
-	errChartMetaNilInObservedConfig   = "chart metadata field is nil in observed cloud-init config"
+	errConfigInfoNilInObservedRelease = "config info is nil in observed cloudinit release"
+	errChartNilInObservedConfig       = "chart field is nil in observed cloudinit config"
+	errChartMetaNilInObservedConfig   = "chart metadata field is nil in observed cloudinit config"
 	errObjectNotPartOfConfig          = "object is not part of config: %v"
 )
 
@@ -54,7 +54,7 @@ func generateObservation(in *config.Config) v1alpha1.ReleaseObservation {
 }
 
 // isUpToDate checks whether desired spec up to date with the observed state for a given config
-func isUpToDate(ctx context.Context, kube client.Client, in *v1alpha1.ConfigParameters, observed *config.Release, s v1beta1.ReleaseStatus) (bool, error) {
+func isUpToDate(ctx context.Context, kube client.Client, in *v1alpha1.ConfigParameters, observed *config.Config, s v1alpha1.ConfigStatus) (bool, error) {
 	if observed.Info == nil {
 		return false, errors.New(errConfigInfoNilInObservedRelease)
 	}
@@ -167,5 +167,5 @@ func unstructuredFromObjectRef(r corev1.ObjectReference) unstructured.Unstructur
 
 func partOfConfig(u unstructured.Unstructured, relName, relNamespace string) bool {
 	a := u.GetAnnotations()
-	return a[cloud-initConfigNameAnnotation] == relName && a[helmReleaseNamespaceAnnotation] == relNamespace
+	return a[cloudinitConfigNameAnnotation] == relName && a[helmReleaseNamespaceAnnotation] == relNamespace
 }

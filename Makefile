@@ -1,5 +1,5 @@
 # Project Setup
-PROJECT_NAME := provider-cloud-init
+PROJECT_NAME := provider-cloudinit
 PROJECT_REPO := github.com/crossplane-contrib/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
@@ -38,7 +38,7 @@ USE_HELM3 = true
 # Setup Images
 
 DOCKER_REGISTRY = crossplane
-IMAGES = provider-cloud-init provider-helm-controller
+IMAGES = provider-cloudinit provider-cloudinit-controller
 -include build/makelib/image.mk
 
 # ====================================================================================
