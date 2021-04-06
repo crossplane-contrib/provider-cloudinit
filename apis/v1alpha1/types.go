@@ -24,6 +24,7 @@ import (
 
 // A ProviderConfigSpec defines the desired state of a Provider.
 type ProviderConfigSpec struct {
+	xpv1.ProviderConfigSpec `json:",inline"`
 }
 
 // A ProviderConfigStatus defines the status of a Provider.
@@ -32,6 +33,7 @@ type ProviderConfigStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // A ProviderConfig configures a CloudInit 'provider', i.e. a connection to a particular
 // +kubebuilder:subresource:status
