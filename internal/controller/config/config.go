@@ -77,7 +77,7 @@ type ctrlConnector struct {
 }
 
 func (c *ctrlConnector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	s := clients.NewClient(false, false, "")
+	s := clients.NewCloudInitClient(false, false, "")
 	return &ctrlClients{kube: c.kube, client: s}, nil
 }
 
@@ -92,7 +92,7 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 		return managed.ExternalObservation{}, errors.New(errNotConfigMap)
 	}
 	cm := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
 			Namespace: cr.GetNamespace(),
 		},
@@ -177,7 +177,7 @@ func (e *ctrlClients) Delete(ctx context.Context, mg resource.Managed) error {
 	cr.Status.SetConditions(xpv1.Deleting())
 
 	nsn := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
 			Namespace: cr.GetNamespace(),
 		},
