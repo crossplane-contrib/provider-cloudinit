@@ -17,16 +17,18 @@ limitations under the License.
 package clients
 
 import (
-	"github.com/crossplane-contrib/provider-cloudinit/internal/clients/cloudinit"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/crossplane-contrib/provider-cloudinit/internal/clients/cloudinit"
 )
 
-// NewRestConfig returns a rest config given a secret with connection information.
+// NewCloudInitClient returns a cloudinit client
 func NewCloudInitClient(useGzipCompression bool, useBase64Encoding bool, base64Boundary string) *cloudinit.Client {
 	return cloudinit.NewClient(useGzipCompression, useBase64Encoding, base64Boundary)
 }
 
+// IsErrorNotFound is true when the error is a Kubernetes Not Found error
 func IsErrorNotFound(err error) bool {
 	return kerrors.IsNotFound(errors.Cause(err))
 }

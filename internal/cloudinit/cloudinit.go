@@ -11,6 +11,7 @@ import (
 	"net/textproto"
 )
 
+// PartReader identifies the components of a multi-part mime part
 type PartReader interface {
 	Filename() string
 	Content() string
@@ -18,7 +19,7 @@ type PartReader interface {
 	MergeType() string
 }
 
-// CloudConfiger
+// CloudConfiger identifies the options needed to encode a multi-part mime document
 type CloudConfiger interface {
 	UseGzipCompression() bool
 	UseBase64Encoding() bool
@@ -48,6 +49,9 @@ func RenderCloudinitConfig(d CloudConfiger) (string, error) {
 	if gzipOutput {
 		gzipWriter := gzip.NewWriter(&buffer)
 		err = renderPartsToWriter(mimeBoundary, partsValue, gzipWriter)
+		if err != nil {
+			return "", err
+		}
 		err = gzipWriter.Close()
 		if err != nil {
 			return "", err
@@ -78,14 +82,18 @@ func renderPartsToWriter(mimeBoundary string, parts []PartReader, writer io.Writ
 		}
 	}()
 
-	// we need to set the boundary explictly, otherwise the boundary is random
+	// we need to set the boundary explicitly, otherwise the boundary is random
 	// and this causes terraform to complain about the resource being different
 	if err := mimeWriter.SetBoundary(mimeBoundary); err != nil {
 		return err
 	}
 
-	writer.Write([]byte(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\n", mimeWriter.Boundary())))
-	writer.Write([]byte("MIME-Version: 1.0\r\n\r\n"))
+	if _, err := writer.Write([]byte(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\n", mimeWriter.Boundary()))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte("MIME-Version: 1.0\r\n\r\n")); err != nil {
+		return err
+	}
 
 	for _, part := range parts {
 		header := textproto.MIMEHeader{}
