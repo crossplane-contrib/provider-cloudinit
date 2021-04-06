@@ -19,6 +19,8 @@
 * overkill?
 
 * why not an xrd?
+  * maybe someday? maybe just add support for functions (via lambda hooks or hcl / other dsl), i need a function to take input configmaps, apply templates, concatenate and gzip.. all local operations 
+    https://github.com/crossplane/crossplane/pull/1705
 
 ## features of the configmap provider
 
