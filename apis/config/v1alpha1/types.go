@@ -79,18 +79,16 @@ type ConfigStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // A Config is an example API type
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="CHART",type="string",JSONPath=".spec.forProvider.chart.name"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.forProvider.chart.version"
+// +kubebuilder:printcolumn:name="CONFIGMAP",type="string",JSONPath=".spec.writeCloudInitToRef.name"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.atProvider.state"
-// +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".status.atProvider.revision"
-// +kubebuilder:printcolumn:name="DESCRIPTION",type="string",JSONPath=".status.atProvider.configDescription"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,helm}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,cloudinit}
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

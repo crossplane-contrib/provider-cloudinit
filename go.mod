@@ -1,6 +1,6 @@
 module github.com/crossplane-contrib/provider-cloudinit
 
-go 1.13
+go 1.15
 
 require (
 	github.com/crossplane/crossplane-runtime v0.13.0

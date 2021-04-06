@@ -11,7 +11,7 @@ spec:
     categories:
     - crossplane
     - provider
-    - helm
+    - cloudinit
     kind: Config
     listKind: ConfigList
     plural: configs
@@ -19,11 +19,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.forProvider.chart.name
-      name: CHART
-      type: string
-    - jsonPath: .spec.forProvider.chart.version
-      name: VERSION
+    - jsonPath: .spec.writeCloudInitToRef.name
+      name: CONFIGMAP
       type: string
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
@@ -33,12 +30,6 @@ spec:
       type: string
     - jsonPath: .status.atProvider.state
       name: STATE
-      type: string
-    - jsonPath: .status.atProvider.revision
-      name: REVISION
-      type: string
-    - jsonPath: .status.atProvider.configDescription
-      name: DESCRIPTION
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
