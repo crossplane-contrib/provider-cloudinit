@@ -49,3 +49,7 @@ spec:
         kind: ConfigMap
         name: provider-cloudinit-configmap-foo
 ```
+
+## Testing
+
+`make run`
