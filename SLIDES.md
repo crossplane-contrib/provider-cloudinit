@@ -48,6 +48,7 @@
 * more code than a terraform provider
 * more functionality than a terraform provider
 * when angryjet is hella-perturbed, can't build, misleading errors
+  * generate by hand and look for errors 
 
 ## todo
 
