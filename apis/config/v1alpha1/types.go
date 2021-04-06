@@ -52,10 +52,11 @@ type ContentFromSource struct {
 
 // ConfigParameters are the configurable fields of a Config.
 type ConfigParameters struct {
-	Gzip         bool       `json:"gzip,omitempty"`
-	Base64Encode bool       `json:"base64_encode,omitempty"`
-	Boundary     string     `json:"boundary,omitempty"`
-	Parts        []PartSpec `json:"part,omitempty"`
+	Gzip         bool   `json:"gzip,omitempty"`
+	Base64Encode bool   `json:"base64_encode,omitempty"`
+	Boundary     string `json:"boundary,omitempty"`
+
+	Parts []PartSpec `json:"part,omitempty"`
 }
 
 // ConfigObservation are the observable fields of a Config.

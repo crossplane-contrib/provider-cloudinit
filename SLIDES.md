@@ -66,6 +66,8 @@ xrd e:
 
 * providers don't have to interact with APIs
   * atProvider / forProvider relevance
+  * ProviderConfig relevance
+    error: error validating "providerconfig.yaml": error validating data: ValidationError(ProviderConfig): missing required field "spec" in io.crossplane.cloudinit.v1alpha1.ProviderConfig; if you choose to ignore these errors, turn validation off with --validate=false
 * externalname any purpose
 * crossplane runtime, angryjet provide a convenient interface
 * more code than a terraform provider

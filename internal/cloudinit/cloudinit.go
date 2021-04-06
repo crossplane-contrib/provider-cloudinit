@@ -9,6 +9,8 @@ import (
 	"log"
 	"mime/multipart"
 	"net/textproto"
+
+	"github.com/google/uuid"
 )
 
 // PartReader identifies the components of a multi-part mime part
@@ -74,6 +76,10 @@ func RenderCloudinitConfig(d CloudConfiger) (string, error) {
 }
 
 func renderPartsToWriter(mimeBoundary string, parts []PartReader, writer io.Writer) error {
+	if mimeBoundary == "" {
+		mimeBoundary = uuid.NewString()
+	}
+
 	mimeWriter := multipart.NewWriter(writer)
 	defer func() {
 		err := mimeWriter.Close()
