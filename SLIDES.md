@@ -29,6 +29,11 @@
 
 ## example integration
 
+* change cloudconfig configmap
+  * redeployed instance
+  * what if other instances depend on values from this instance?
+  * cyclical dependency loop?
+    * solve via xrd
 ## final thoughts
 
 * providers don't have to interact with APIs

@@ -16,8 +16,8 @@ package controller
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane-contrib/provider-cloudinit/pkg/controller/config"
-	"github.com/crossplane-contrib/provider-cloudinit/pkg/controller/providerconfig"
+	"github.com/crossplane-contrib/provider-cloudinit/internal/controller/config"
+	"github.com/crossplane-contrib/provider-cloudinit/internal/controller/providerconfig"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )

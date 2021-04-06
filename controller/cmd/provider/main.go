@@ -24,7 +24,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane-contrib/provider-cloudinit/apis"
-	"github.com/crossplane-contrib/provider-cloudinit/pkg/controller"
+	"github.com/crossplane-contrib/provider-cloudinit/internal/controller"
 )
 
 func main() {

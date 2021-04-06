@@ -15,16 +15,30 @@ package config
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/chart"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ktype "sigs.k8s.io/kustomize/api/types"
+
+	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
+
+	"github.com/crossplane-contrib/provider-cloudinit/apis/config/v1alpha1"
+	"github.com/crossplane-contrib/provider-cloudinit/internal/cloudinit"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -35,11 +49,25 @@ import (
 
 	"github.com/crossplane-contrib/provider-cloudinit/apis/config/v1alpha1"
 	cloudinitv1alpha1 "github.com/crossplane-contrib/provider-cloudinit/apis/v1alpha1"
-	"github.com/crossplane-contrib/provider-cloudinit/pkg/clients"
-	cloudinitClient "github.com/crossplane-contrib/provider-cloudinit/pkg/clients/helm"
+	cloudinitClient "github.com/crossplane-contrib/provider-cloudinit/internal/clients/cloudinit"
 )
 
 const (
+	errFailedToGetSecret    = "failed to get secret from namespace \"%s\""
+	errSecretDataIsNil      = "secret data is nil"
+	errFailedToGetConfigMap = "failed to get configmap from namespace \"%s\""
+	errConfigMapDataIsNil   = "configmap data is nil"
+
+	errSourceNotSetForValueFrom        = "source not set for value from"
+	errFailedToGetDataFromSecretRef    = "failed to get data from secret ref"
+	errFailedToGetDataFromConfigMapRef = "failed to get data from configmap ref"
+	errMissingKeyForValuesFrom         = "missing key \"%s\" in values from source"
+
+	errConfigInfoNilInObservedRelease = "config info is nil in observed cloudinit release"
+	errChartNilInObservedConfig       = "chart field is nil in observed cloudinit config"
+	errChartMetaNilInObservedConfig   = "chart metadata field is nil in observed cloudinit config"
+	errObjectNotPartOfConfig          = "object is not part of config: %v"
+
 	maxConcurrency = 10
 
 	resyncPeriod     = 10 * time.Minute
@@ -47,9 +75,7 @@ const (
 
 	cloudinitConfigNameAnnotation      = "meta.helm.sh/config-name"
 	cloudinitConfigNamespaceAnnotation = "meta.helm.sh/config-namespace"
-)
 
-const (
 	errNotConfig                         = "managed resource is not a Release custom resource"
 	errProviderConfigNotSet              = "provider config is not set"
 	errProviderNotRetrieved              = "provider could not be retrieved"
@@ -83,11 +109,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ConfigGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			logger:               logger,
-			client:               mgr.GetClient(),
-			usage:                resource.NewProviderConfigUsageTracker(mgr.GetClient(), &cloudinitv1alpha1.ProviderConfigUsage{}),
-			newRestConfigFn:      clients.NewRestConfig,
-			newKubeClientFn:      clients.NewKubeClient,
+			logger: logger,
+			client: mgr.GetClient(),
+			// usage
 			newCloudInitClientFn: cloudinitClient.NewClient,
 		}),
 		managed.WithLogger(logger),
@@ -106,9 +130,7 @@ type connector struct {
 	logger               logging.Logger
 	client               client.Client
 	usage                resource.Tracker
-	newRestConfigFn      func(kubeconfig []byte) (*rest.Config, error)
-	newKubeClientFn      func(config *rest.Config) (client.Client, error)
-	newCloudInitClientFn func(log logging.Logger, config *rest.Config, namespace string, wait bool) (cloudinitClient.Client, error)
+	newCloudInitClientFn func(useGzipCompression bool, useBase64Encoding bool, base64Boundary string) *cloudinitClient.Client
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
@@ -135,45 +157,13 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errProviderNotRetrieved)
 	}
 
-	var rc *rest.Config
 	var err error
 
-	s := p.Spec.Credentials.Source
-	switch s { //nolint:exhaustive
-	case xpv1.CredentialsSourceInjectedIdentity:
-		rc, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, errors.Wrap(err, errFailedToCreateRestConfig)
-		}
-	case xpv1.CredentialsSourceSecret:
-		ref := p.Spec.Credentials.SecretRef
-		if ref == nil {
-			return nil, errors.New(errCredSecretNotSet)
-		}
+	useGzipCompression := true
+	useBase64Encoding := true
+	base64Boundary := "MIMEBOUNDARY"
 
-		key := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
-		d, err := getSecretData(ctx, c.client, key)
-		if err != nil {
-			return nil, errors.Wrap(err, errProviderSecretNotRetrieved)
-		}
-		kc, f := d[ref.Key]
-		if !f {
-			return nil, errors.Errorf(errProviderSecretValueForKeyNotFound, ref.Key)
-		}
-		rc, err = c.newRestConfigFn(kc)
-		if err != nil {
-			return nil, errors.Wrap(err, errFailedToCreateRestConfig)
-		}
-	default:
-		return nil, errors.Errorf(errFmtUnsupportedCredSource, s)
-	}
-
-	k, err := c.newKubeClientFn(rc)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewKubernetesClient)
-	}
-
-	h, err := c.newCloudInitClientFn(c.logger, rc, cr.Spec.ForProvider.Namespace, cr.Spec.ForProvider.Wait)
+	h := c.newCloudInitClientFn(useGzipCompression, useBase64Encoding, base64Boundary)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewKubernetesClient)
 	}
@@ -181,9 +171,9 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	return &cloudinitExternal{
 		logger:    l,
 		localKube: c.client,
-		kube:      k,
+		//kube:      k,
 		cloudinit: h,
-		patch:     newPatcher(),
+		// patch:     newPatcher(),
 	}, nil
 }
 
@@ -191,8 +181,8 @@ type cloudinitExternal struct {
 	logger    logging.Logger
 	localKube client.Client
 	kube      client.Client
-	cloudinit helmClient.Client
-	patch     Patcher
+	cloudinit *cloudinitClient.Client
+	//patch     Patcher
 }
 
 func (e *cloudinitExternal) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -249,12 +239,12 @@ func (e *cloudinitExternal) Observe(ctx context.Context, mg resource.Managed) (m
 
 	return managed.ExternalObservation{
 		ResourceExists:    true,
-		ResourceUpToDate:  cr.Status.Synced && !(shouldRollBack(cr) && !rollBackLimitReached(cr)),
+		ResourceUpToDate:  cr.Status.Synced,
 		ConnectionDetails: cd,
 	}, nil
 }
 
-type deployAction func(config string, chart *chart.Chart, vals map[string]interface{}, patches []ktype.Patch) (*release.Config, error)
+type deployAction func(config string, chart *chart.Chart, vals map[string]interface{}, patches []ktype.Patch) (*v1alpha1.Config, error)
 
 func (e *cloudinitExternal) deploy(ctx context.Context, cr *v1alpha1.Config, action deployAction) error {
 	cv, err := composeValuesFromSpec(ctx, e.localKube, cr.Spec.ForProvider.ValuesSpec)
@@ -325,25 +315,6 @@ func (e *cloudinitExternal) Update(ctx context.Context, mg resource.Managed) (ma
 		return managed.ExternalUpdate{}, errors.New(errNotConfig)
 	}
 
-	if shouldRollBack(cr) {
-		e.logger.Debug("Last config failed")
-		if !rollBackLimitReached(cr) {
-			// Rollback
-			e.logger.Debug("Will rollback/uninstall to retry")
-			cr.Status.Failed++
-			// If it's the first revision of a Config, rollback would fail since there is no previous revision.
-			// We need to uninstall to retry.
-			if cr.Status.AtProvider.Revision == 1 {
-				e.logger.Debug("Uninstalling")
-				return managed.ExternalUpdate{}, e.cloudinit.Uninstall(meta.GetExternalName(cr))
-			}
-			e.logger.Debug("Rolling back to previous config version")
-			return managed.ExternalUpdate{}, e.cloudinit.Rollback(meta.GetExternalName(cr))
-		}
-		e.logger.Debug("Reached max rollback retries, will not retry")
-		return managed.ExternalUpdate{}, nil
-	}
-
 	e.logger.Debug("Updating")
 	return managed.ExternalUpdate{}, errors.Wrap(e.deploy(ctx, cr, e.cloudinit.Upgrade), errFailedToUpgrade)
 }
@@ -359,16 +330,196 @@ func (e *cloudinitExternal) Delete(_ context.Context, mg resource.Managed) error
 	return errors.Wrap(e.cloudinit.Uninstall(meta.GetExternalName(cr)), errFailedToUninstall)
 }
 
-func shouldRollBack(cr *v1alpha1.Config) bool {
-	return rollBackEnabled(cr) &&
-		((cr.Status.Synced && cr.Status.AtProvider.State == config.StatusFailed) ||
-			(cr.Status.AtProvider.State == config.StatusPendingInstall) ||
-			(cr.Status.AtProvider.State == config.StatusPendingUpgrade))
+// generateObservation generates config observation for the input release object
+func generateObservation(in *config.Config) v1alpha1.ConfigObservation {
+	o := v1alpha1.ConfigObservation{}
+
+	relInfo := in.Info
+	if relInfo != nil {
+		o.State = relInfo.Status
+		o.ConfigDescription = relInfo.Description
+		o.Revision = in.Version
+	}
+	return o
 }
 
-func rollBackEnabled(cr *v1alpha1.Config) bool {
-	return cr.Spec.RollbackRetriesLimit != nil
+// isUpToDate checks whether desired spec up to date with the observed state for a given config
+func isUpToDate(ctx context.Context, kube client.Client, in *v1alpha1.ConfigParameters, observed *config.ConfigMap, s v1alpha1.ConfigStatus) (bool, error) {
+	if observed.Info == nil {
+		return false, errors.New(errConfigInfoNilInObservedRelease)
+	}
+
+	if isPending(observed.Info.Status) {
+		return false, nil
+	}
+
+	oc := observed.Chart
+	if oc == nil {
+		return false, errors.New(errChartNilInObservedConfig)
+	}
+
+	ocm := oc.Metadata
+	if ocm == nil {
+		return false, errors.New(errChartMetaNilInObservedConfig)
+	}
+	if in.Chart.Name != ocm.Name {
+		return false, nil
+	}
+	if in.Chart.Version != ocm.Version {
+		return false, nil
+	}
+	desiredConfig, err := composeValuesFromSpec(ctx, kube, in.ValuesSpec)
+	if err != nil {
+		return false, errors.Wrap(err, errFailedToComposeValues)
+	}
+
+	d, err := yaml.Marshal(desiredConfig)
+	if err != nil {
+		return false, err
+	}
+
+	observedConfig := observed.Config
+	if observedConfig == nil {
+		// If no config provider, desiredConfig returns as empty map. However, observed would be nil in this case.
+		// We know both empty and nil are same.
+		observedConfig = make(map[string]interface{})
+	}
+
+	o, err := yaml.Marshal(observedConfig)
+	if err != nil {
+		return false, err
+	}
+
+	if string(d) != string(o) {
+		return false, nil
+	}
+
+	changed, err := newPatcher().hasUpdates(ctx, kube, in.PatchesFrom, s)
+	if err != nil {
+		return false, errors.Wrap(err, errFailedToLoadPatches)
+	}
+
+	if changed {
+		return false, nil
+	}
+
+	return true, nil
 }
-func rollBackLimitReached(cr *v1alpha1.Config) bool {
-	return cr.Status.Failed >= *cr.Spec.RollbackRetriesLimit
+
+func isPending(s config.Status) bool {
+	return s == config.StatusPendingInstall || s == cloudinit.StatusPendingUpgrade || s == cloudinit.StatusPendingRollback
+}
+
+func connectionDetails(ctx context.Context, kube client.Client, connDetails []v1alpha1.ConnectionDetail, relName, relNamespace string) (managed.ConnectionDetails, error) {
+	mcd := managed.ConnectionDetails{}
+
+	for _, cd := range connDetails {
+		ro := unstructuredFromObjectRef(cd.ObjectReference)
+		if err := kube.Get(ctx, types.NamespacedName{Name: ro.GetName(), Namespace: ro.GetNamespace()}, &ro); err != nil {
+			return mcd, errors.Wrap(err, "cannot get object")
+		}
+
+		// TODO(hasan): consider making this check configurable, i.e. possible to skip via a field in spec
+		if !partOfConfig(ro, relName, relNamespace) {
+			return mcd, errors.Errorf(errObjectNotPartOfConfig, cd.ObjectReference)
+		}
+
+		paved := fieldpath.Pave(ro.Object)
+		v, err := paved.GetValue(cd.FieldPath)
+		if err != nil {
+			return mcd, errors.Wrapf(err, "failed to get value at fieldPath: %s", cd.FieldPath)
+		}
+		s := fmt.Sprintf("%v", v)
+		fv := []byte(s)
+		// prevent secret data being encoded twice
+		if cd.Kind == "Secret" && cd.APIVersion == "v1" && strings.HasPrefix(cd.FieldPath, "data") {
+			fv, err = base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return mcd, errors.Wrap(err, "failed to decode secret data")
+			}
+		}
+
+		mcd[cd.ToConnectionSecretKey] = fv
+	}
+
+	return mcd, nil
+}
+
+func unstructuredFromObjectRef(r corev1.ObjectReference) unstructured.Unstructured {
+	u := unstructured.Unstructured{}
+	u.SetAPIVersion(r.APIVersion)
+	u.SetKind(r.Kind)
+	u.SetName(r.Name)
+	u.SetNamespace(r.Namespace)
+
+	return u
+}
+
+func partOfConfig(u unstructured.Unstructured, relName, relNamespace string) bool {
+	a := u.GetAnnotations()
+	return a[cloudinitConfigNameAnnotation] == relName && a[helmReleaseNamespaceAnnotation] == relNamespace
+}
+
+func getSecretData(ctx context.Context, kube client.Client, nn types.NamespacedName) (map[string][]byte, error) {
+	s := &corev1.Secret{}
+	if err := kube.Get(ctx, nn, s); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf(errFailedToGetSecret, nn.Namespace))
+	}
+	if s.Data == nil {
+		return nil, errors.New(errSecretDataIsNil)
+	}
+	return s.Data, nil
+}
+
+func getConfigMapData(ctx context.Context, kube client.Client, nn types.NamespacedName) (map[string]string, error) {
+	cm := &corev1.ConfigMap{}
+	if err := kube.Get(ctx, nn, cm); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf(errFailedToGetConfigMap, nn.Namespace))
+	}
+	if cm.Data == nil {
+		return nil, errors.New(errConfigMapDataIsNil)
+	}
+	return cm.Data, nil
+}
+
+func getDataValueFromSource(ctx context.Context, kube client.Client, source v1alpha1.ValueFromSource, defaultKey string) (string, error) { // nolint:gocyclo
+	if source.SecretKeyRef != nil {
+		r := source.SecretKeyRef
+		d, err := getSecretData(ctx, kube, types.NamespacedName{Name: r.Name, Namespace: r.Namespace})
+		if kerrors.IsNotFound(errors.Cause(err)) && !r.Optional {
+			return "", errors.Wrap(err, errFailedToGetDataFromSecretRef)
+		}
+		if err != nil && !kerrors.IsNotFound(errors.Cause(err)) {
+			return "", errors.Wrap(err, errFailedToGetDataFromSecretRef)
+		}
+		k := defaultKey
+		if r.Key != "" {
+			k = r.Key
+		}
+		valBytes, ok := d[k]
+		if !ok && !r.Optional {
+			return "", errors.New(fmt.Sprintf(errMissingKeyForValuesFrom, k))
+		}
+		return string(valBytes), nil
+	}
+	if source.ConfigMapKeyRef != nil {
+		r := source.ConfigMapKeyRef
+		d, err := getConfigMapData(ctx, kube, types.NamespacedName{Name: r.Name, Namespace: r.Namespace})
+		if kerrors.IsNotFound(errors.Cause(err)) && !r.Optional {
+			return "", errors.Wrap(err, errFailedToGetDataFromConfigMapRef)
+		}
+		if err != nil && !kerrors.IsNotFound(errors.Cause(err)) {
+			return "", errors.Wrap(err, errFailedToGetDataFromConfigMapRef)
+		}
+		k := defaultKey
+		if r.Key != "" {
+			k = r.Key
+		}
+		valString, ok := d[k]
+		if !ok && !r.Optional {
+			return "", errors.New(fmt.Sprintf(errMissingKeyForValuesFrom, k))
+		}
+		return valString, nil
+	}
+	return "", errors.New(errSourceNotSetForValueFrom)
 }
