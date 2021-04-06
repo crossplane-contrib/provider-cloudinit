@@ -2,12 +2,20 @@
 
 ## provisioning managed services
   
-* what about tranditional vm services? baremetal?
+* what about traditional vm services? baremetal?
   * how do you configure them?
     * provider ssh? idempotency?
     * userdata. limitations?
       * cloud-init.
         * provider?
+
+## Alternatives
+
+device.userdata native support for configmaps
+custom composition to create device.userdata?
+patch from configmaps not yet supported
+terraform cloudinit and template provider as crossplane providers?
+  missing support for datasources? (are they all that different?)
 
 ## terraform provider
 
@@ -21,6 +29,7 @@
 * why not an xrd?
   * maybe someday? maybe just add support for functions (via lambda hooks or hcl / other dsl), i need a function to take input configmaps, apply templates, concatenate and gzip.. all local operations
     https://github.com/crossplane/crossplane/pull/1705
+
 
 ## features of the configmap provider
 
@@ -39,6 +48,16 @@
     * solve via xrd
 
 * configmap namespace, provider namespace
+
+xrd e:
+  xrd d:
+   composition b:
+    patch device.status.atProvider.ip_address to configmap
+
+  xrd c (optional ip address):
+    composition a:
+       patch(required ip address) configmap to device.spec.forProvider.userdata
+
 ## final thoughts
 
 * providers don't have to interact with APIs
@@ -48,7 +67,7 @@
 * more code than a terraform provider
 * more functionality than a terraform provider
 * when angryjet is hella-perturbed, can't build, misleading errors
-  * generate by hand and look for errors 
+  * generate by hand and look for errors
 
 ## todo
 
@@ -56,3 +75,4 @@
 * Treate CloudConfig as a DSL, https://github.com/juju/juju/blob/develop/cloudconfig/cloudinit/cloudinit.go
   * packages: sshkeys: etc
 
+* reading in secret
