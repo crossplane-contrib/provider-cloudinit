@@ -13,3 +13,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+.cache/
+.work/
+_output/
+.vscode/
