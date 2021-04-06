@@ -6,17 +6,12 @@ require (
 	github.com/crossplane/crossplane-runtime v0.13.0
 	github.com/crossplane/crossplane-tools v0.0.0-20201007233256-88b291e145bb
 	github.com/google/go-cmp v0.5.2
-	github.com/jessevdk/go-flags v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/pkg/errors v0.9.1
-	google.golang.org/api v0.20.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	helm.sh/helm/v3 v3.2.4
 	k8s.io/api v0.20.1
 	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v0.20.1
-	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/controller-runtime v0.8.0
 	sigs.k8s.io/controller-tools v0.3.0
-	sigs.k8s.io/kustomize/api v0.5.1
-	sigs.k8s.io/yaml v1.2.0
 )

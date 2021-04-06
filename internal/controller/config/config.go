@@ -151,7 +151,7 @@ func (e *ctrlClients) Create(ctx context.Context, mg resource.Managed) (managed.
 
 	}
 	cm := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
 			Namespace: cr.GetNamespace(),
 		},
