@@ -19,7 +19,7 @@
 * overkill?
 
 * why not an xrd?
-  * maybe someday? maybe just add support for functions (via lambda hooks or hcl / other dsl), i need a function to take input configmaps, apply templates, concatenate and gzip.. all local operations 
+  * maybe someday? maybe just add support for functions (via lambda hooks or hcl / other dsl), i need a function to take input configmaps, apply templates, concatenate and gzip.. all local operations
     https://github.com/crossplane/crossplane/pull/1705
 
 ## features of the configmap provider
@@ -28,6 +28,7 @@
 * DataKeySelector vs xpv1.Reference / xpv1.SecretReference
 * up-2-date checks are full recomputes instead of api read/writes
 * specname as remote client "id"
+* credentialsSecretRef, writeSecretRefTo not needed in this case
 
 ## example integration
 
@@ -46,6 +47,7 @@
 * crossplane runtime, angryjet provide a convenient interface
 * more code than a terraform provider
 * more functionality than a terraform provider
+* when angryjet is hella-perturbed, can't build, misleading errors
 
 ## todo
 
