@@ -1,14 +1,18 @@
 # Provider Cloud-Init
 
 ## provisioning managed services
+
+(inspiration)
+typical uses
+
+atypical uses
   
 * what about traditional vm services? baremetal?
   * how do you configure them?
-    * provider ssh? idempotency?
+    * provider ssh? idempotency? (existing exploration in tbs/rawkode)
     * userdata. limitations?
       * cloud-init.
         * provider?
-
 ## Alternatives
 
 device.userdata native support for configmaps
@@ -68,6 +72,8 @@ xrd e:
 * more functionality than a terraform provider
 * when angryjet is hella-perturbed, can't build, misleading errors
   * generate by hand and look for errors
+
+if this is janky - tell me how to make it better, hopefully inspiring new features for crossplane
 
 ## todo
 
