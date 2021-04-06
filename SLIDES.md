@@ -34,10 +34,13 @@
   * what if other instances depend on values from this instance?
   * cyclical dependency loop?
     * solve via xrd
+
+* configmap namespace, provider namespace
 ## final thoughts
 
 * providers don't have to interact with APIs
   * atProvider / forProvider relevance
+* externalname any purpose
 * crossplane runtime, angryjet provide a convenient interface
 * more code than a terraform provider
 * more functionality than a terraform provider
@@ -47,3 +50,4 @@
 * copy setval from helm provider, use provider for templated string replacement
 * Treate CloudConfig as a DSL, https://github.com/juju/juju/blob/develop/cloudconfig/cloudinit/cloudinit.go
   * packages: sshkeys: etc
+

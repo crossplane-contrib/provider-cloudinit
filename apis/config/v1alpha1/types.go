@@ -57,22 +57,20 @@ type ConfigParameters struct {
 
 // ConfigObservation are the observable fields of a Config.
 type ConfigObservation struct {
-	State             string `json:"state,omitempty"`
-	ConfigDescription string `json:"configDescription,omitempty"`
-	Revision          int    `json:"revision,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 // A ConfigSpec defines the desired state of a Config.
 type ConfigSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       ConfigParameters `json:"forProvider"`
+	xpv1.ResourceSpec   `json:",inline"`
+	ForProvider         ConfigParameters `json:"forProvider"`
+	WriteCloudInitToRef *xpv1.Reference  `json:"writeCloudInitToRef,omitempty"`
 }
 
 // A ConfigStatus represents the observed state of a Config.
 type ConfigStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
 	AtProvider          ConfigObservation `json:"atProvider,omitempty"`
-	PatchesSha          string            `json:"patchesSha,omitempty"`
 	Failed              int32             `json:"failed,omitempty"`
 	Synced              bool              `json:"synced,omitempty"`
 }
