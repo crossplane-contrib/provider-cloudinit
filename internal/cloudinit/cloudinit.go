@@ -77,7 +77,7 @@ func RenderCloudinitConfig(d CloudConfiger) (string, error) {
 
 func renderPartsToWriter(mimeBoundary string, parts []PartReader, writer io.Writer) error {
 	if mimeBoundary == "" {
-		# TODO(displague) random uuid will cause infinite resource jitter, lateinitialize boundary in the managed resource instead
+		// TODO(displague) random uuid will cause infinite resource jitter, lateinitialize boundary in the managed resource instead
 		mimeBoundary = uuid.NewString()
 	}
 

@@ -86,11 +86,12 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 	cl := clients.NewCloudInitClient(cr.Spec.ForProvider.Gzip, cr.Spec.ForProvider.Gzip, cr.Spec.ForProvider.Boundary)
 	for _, p := range cr.Spec.ForProvider.Parts {
 		content := p.Content
+
 		if p.ConfigMapKeyRef != nil {
 			partCM := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      cr.Spec.WriteCloudInitToRef.Name,
-					Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
+					Name:      p.ConfigMapKeyRef.Name,
+					Namespace: p.ConfigMapKeyRef.Namespace,
 				},
 			}
 			partNsn := types.NamespacedName{
@@ -98,10 +99,17 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 				Namespace: partCM.GetNamespace(),
 			}
 			if err := e.kube.Get(ctx, partNsn, partCM); err != nil {
+				if p.ConfigMapKeyRef.Optional {
+					// TODO(displague) log that this optional configmap was not available
+					continue
+				}
 				return "", errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errGetPart)
 			}
-			// TODO(displague) what keys should be used in configmaps read as parts?
-			content = partCM.Data[configMapKey]
+			key := p.ConfigMapKeyRef.Key
+			if key == "" {
+				key = configMapKey
+			}
+			content = partCM.Data[key]
 		}
 
 		cl.AppendPart(content, p.Filename, p.ContentType, p.MergeType)
@@ -111,13 +119,17 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 }
 
 func generateConfigMap(cr *v1alpha1.Config, want string) *corev1.ConfigMap {
+	key := cr.Spec.WriteCloudInitToRef.Key
+	if key == "" {
+		key = configMapKey
+	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
 			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 		Data: map[string]string{
-			configMapKey: want,
+			key: want,
 		},
 	}
 }
@@ -147,7 +159,11 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
-	got := cm.Data[configMapKey]
+	key := cr.Spec.WriteCloudInitToRef.Key
+	if key == "" {
+		key = configMapKey
+	}
+	got := cm.Data[key]
 
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errNotRender)
