@@ -5,9 +5,16 @@ metadata:
 spec:
   writeCloudInitToRef:
     name: cloudinit
+    namespace: default
+    key: "cloud-init"
   forProvider:
     boundary: MIMEBOUNDARY
     part:
+    - configMapKeyRef:
+      name: foo
+      namespace: default
+      key: foo
+      optional: true
     - content: |
         #!/bin/sh
         echo "Hello World, from provider-cloudinit"
