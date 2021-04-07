@@ -62,10 +62,11 @@ spec:
                   base64_encode:
                     type: boolean
                   boundary:
+                    description: Boundary is the optional mime-boundary. It defaults to a random UUIDv4
                     type: string
                   gzip:
                     type: boolean
-                  part:
+                  parts:
                     items:
                       description: PartSpec defines the Part spec for a Config
                       properties:
@@ -129,13 +130,19 @@ spec:
                 - name
                 type: object
               writeCloudInitToRef:
-                description: A Reference to a named object.
+                description: DataKeySelector defines required spec to access a key of a configmap or secret
                 properties:
-                  name:
-                    description: Name of the referenced object.
+                  key:
                     type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                  optional:
+                    type: boolean
                 required:
                 - name
+                - namespace
                 type: object
               writeConnectionSecretToRef:
                 description: WriteConnectionSecretToReference specifies the namespace and name of a Secret to which any connection details for this managed resource should be written. Connection details frequently include the endpoint, username, and password required to connect to the managed resource.

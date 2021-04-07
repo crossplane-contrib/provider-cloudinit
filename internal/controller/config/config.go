@@ -48,6 +48,8 @@ const (
 	errManagedConfigUpdate = "cannot update managed Config resource"
 	errNotRender           = "cannot render cloud-init data"
 	errUpdateConfigMap     = "cannot update ConfigMap"
+
+	configMapKey = "cloud-init"
 )
 
 // Setup adds a controller that reconciles
@@ -88,7 +90,7 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 			partCM := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      cr.Spec.WriteCloudInitToRef.Name,
-					Namespace: cr.GetNamespace(),
+					Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 				},
 			}
 			partNsn := types.NamespacedName{
@@ -99,7 +101,7 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 				return "", errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errGetPart)
 			}
 			// TODO(displague) what keys should be used in configmaps read as parts?
-			content = partCM.Data["cloud-init"]
+			content = partCM.Data[configMapKey]
 		}
 
 		cl.AppendPart(content, p.Filename, p.ContentType, p.MergeType)
@@ -112,10 +114,10 @@ func generateConfigMap(cr *v1alpha1.Config, want string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 		Data: map[string]string{
-			"cloud-init": want,
+			configMapKey: want,
 		},
 	}
 }
@@ -128,7 +130,7 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 	}
 	nsn := types.NamespacedName{
@@ -145,7 +147,7 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
-	got := cm.Data["cloud-init"]
+	got := cm.Data[configMapKey]
 
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errNotRender)
@@ -211,7 +213,7 @@ func (e *ctrlClients) Delete(ctx context.Context, mg resource.Managed) error {
 	nsn := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 	}
 
