@@ -21,7 +21,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/common/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -128,7 +127,7 @@ func (in *ConfigSpec) DeepCopyInto(out *ConfigSpec) {
 	in.ForProvider.DeepCopyInto(&out.ForProvider)
 	if in.WriteCloudInitToRef != nil {
 		in, out := &in.WriteCloudInitToRef, &out.WriteCloudInitToRef
-		*out = new(v1.Reference)
+		*out = new(DataKeySelector)
 		**out = **in
 	}
 }

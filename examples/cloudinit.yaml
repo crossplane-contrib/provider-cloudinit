@@ -1,0 +1,25 @@
+apiVersion: cloudinit.crossplane.io/v1alpha1
+kind: Config
+metadata:
+  name: cloudinit
+spec:
+  writeCloudInitToRef:
+    name: cloudinit
+  forProvider:
+    boundary: MIMEBOUNDARY
+    part:
+    - content: |
+        #!/bin/sh
+        echo "Hello World, from provider-cloudinit"
+    - content: |
+        #cloud-config
+        users:
+        - default
+        - name: displague
+          gecos: Marques Johansson
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          ssh_authorized_keys:
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDb2bQekw0WkU/ENwSefAqgEM2i3Dw8POxudzP2q5B+jveC8e2ZahaK8nvoqQtZlY8UdpuYnt8wByMzlW+YxG96q8QbP4XDwcbVxfgZapbTezs5lVoQ5hgogmG8Qap1uYqLK6U3EH7wvv0ISj2Hg+liXcZ1DC3D86WLj7viehLiSnNJp9bOIKjMnvm7BS6oao3T/Ui0+bu27oG/gWShnOFWPlkdYeCfJcxoeoVappw2dbqwqUQkz5vuMuFsOJItEia083qNHP9ZV95rgiIap9O0GVo8bEldZWRV4nfLyaGcLK4Z4nrSap9V1Ok6FGk7jT9xLbw/um1A29UxrlANsFer
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4+QpAIHXyFaK2v0ojhMzVsPt07sT+N/jnUarG1iu1gaCZdwxtvIYTMZOhRfSuDCu3iK4PDsF9vT94+A0tLrBQXKo6mG4TqSwYvP2sBc7RSzB+yXU6SK/ofkb6HssGZ24oCflRPj6VTdrDj3+4hR+TidzGx7EhMqenPSO8R5Ce8uE5GPCsEBqYS+CapYd/0tK/Md9vzF68nEYKPtlcvYc62+viFse8D1+sCyuXerMS038q4hGAUMC+WzS6/vD0gl8MNcwShNgaMChLkpifBLNtwMcZhvy8lKz+ssozSr3yjAxS+G7u/Rj5T6+7KGtj22TtJ54oIvEvxRF/536g/xUD
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDR3aVUPvEksR19iW63z5fPGtvIIX841PHDA2IgZiFQeHx3m2QoAmad817pkOqWwVEUp0WC4F1prIpgNH6B/9lGr333kstfJ1C/aJ7BJmfYtJrNMOh11Rmh7SLnrfHS3vRxsU5NjzP9gcsRZG33dokFZwrE7qC1xxUkzsZU/zIFDoCje7/R99WgvBb3Ac2hHRTKDewpt6+oaVVFDui6Vhkt98S6XmgsGAvdLklXhZlh8TXdNV7nXi1g5LymyIfhV+9jZoTRYLd4KGuBZA+7V9rkHxyH6/VphJdxT216XVpW0eZcOOV93OfB2F3YsY6l9dVYEXDExFnOXK4iZPPtY0MupkApTZgWD4fIGXMWnGjfNPVPoylonbGWs662b3zZ+bapcAI8YSP7qSwWJ44XzgJg/sDestpOBmXfIunS3WKtI/VPyta6Etrm/f0qSWXrKy/gXE5u9ovocDPxawQlpwUCVzXELkVxlfyONpP4aP9d/lho6RLeb9g5vA+8bCRj6fs=
+

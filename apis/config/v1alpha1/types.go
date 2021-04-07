@@ -52,11 +52,13 @@ type ContentFromSource struct {
 
 // ConfigParameters are the configurable fields of a Config.
 type ConfigParameters struct {
-	Gzip         bool   `json:"gzip,omitempty"`
-	Base64Encode bool   `json:"base64_encode,omitempty"`
-	Boundary     string `json:"boundary,omitempty"`
+	Gzip         bool `json:"gzip,omitempty"`
+	Base64Encode bool `json:"base64_encode,omitempty"`
 
-	Parts []PartSpec `json:"part,omitempty"`
+	// Boundary is the optional mime-boundary. It defaults to a random UUIDv4
+	Boundary string `json:"boundary,omitempty"`
+
+	Parts []PartSpec `json:"parts,omitempty"`
 }
 
 // ConfigObservation are the observable fields of a Config.
@@ -68,7 +70,7 @@ type ConfigObservation struct {
 type ConfigSpec struct {
 	xpv1.ResourceSpec   `json:",inline"`
 	ForProvider         ConfigParameters `json:"forProvider"`
-	WriteCloudInitToRef *xpv1.Reference  `json:"writeCloudInitToRef,omitempty"`
+	WriteCloudInitToRef *DataKeySelector `json:"writeCloudInitToRef,omitempty"`
 }
 
 // A ConfigStatus represents the observed state of a Config.

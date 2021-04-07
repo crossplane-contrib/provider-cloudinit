@@ -48,6 +48,9 @@ const (
 	errManagedConfigUpdate = "cannot update managed Config resource"
 	errNotRender           = "cannot render cloud-init data"
 	errUpdateConfigMap     = "cannot update ConfigMap"
+	errOpaqueSecret        = "cannot read secrets that are not Opaque"
+
+	configMapKey = "cloud-init"
 )
 
 // Setup adds a controller that reconciles
@@ -84,11 +87,45 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 	cl := clients.NewCloudInitClient(cr.Spec.ForProvider.Gzip, cr.Spec.ForProvider.Gzip, cr.Spec.ForProvider.Boundary)
 	for _, p := range cr.Spec.ForProvider.Parts {
 		content := p.Content
+
+		// TODO(displague) p.SecretKeyRef and ConfigMapKeyRef should be set exclusively
+
+		if p.SecretKeyRef != nil {
+			partSec := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      p.ConfigMapKeyRef.Name,
+					Namespace: p.ConfigMapKeyRef.Namespace,
+				},
+			}
+			partNsn := types.NamespacedName{
+				Name:      partSec.GetName(),
+				Namespace: partSec.GetNamespace(),
+			}
+			if err := e.kube.Get(ctx, partNsn, partSec); err != nil {
+				if p.SecretKeyRef.Optional {
+					// TODO(displague) log that this optional configmap was not available
+					continue
+				}
+				return "", errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errGetPart)
+			}
+			// TODO(displague) use a constant for Opaque
+			if partSec.Type != "Opaque" {
+				return "", errors.New(errOpaqueSecret)
+			}
+			key := p.SecretKeyRef.Key
+			if key == "" {
+				// TODO(displague) use default key, or use first key in configmap?
+				key = configMapKey
+			}
+			// TODO(displague) support binary configmap keys
+			content = string(partSec.Data[key])
+		}
+
 		if p.ConfigMapKeyRef != nil {
 			partCM := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      cr.Spec.WriteCloudInitToRef.Name,
-					Namespace: cr.GetNamespace(),
+					Name:      p.ConfigMapKeyRef.Name,
+					Namespace: p.ConfigMapKeyRef.Namespace,
 				},
 			}
 			partNsn := types.NamespacedName{
@@ -96,10 +133,18 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 				Namespace: partCM.GetNamespace(),
 			}
 			if err := e.kube.Get(ctx, partNsn, partCM); err != nil {
+				if p.ConfigMapKeyRef.Optional {
+					// TODO(displague) log that this optional configmap was not available
+					continue
+				}
 				return "", errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errGetPart)
 			}
-			// TODO(displague) what keys should be used in configmaps read as parts?
-			content = partCM.Data["cloud-init"]
+			key := p.ConfigMapKeyRef.Key
+			if key == "" {
+				// TODO(displague) use default key, or use first key in configmap?
+				key = configMapKey
+			}
+			content = partCM.Data[key]
 		}
 
 		cl.AppendPart(content, p.Filename, p.ContentType, p.MergeType)
@@ -109,13 +154,17 @@ func (e *ctrlClients) renderCloudInit(ctx context.Context, cr *v1alpha1.Config) 
 }
 
 func generateConfigMap(cr *v1alpha1.Config, want string) *corev1.ConfigMap {
+	key := cr.Spec.WriteCloudInitToRef.Key
+	if key == "" {
+		key = configMapKey
+	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 		Data: map[string]string{
-			"cloud-init": want,
+			key: want,
 		},
 	}
 }
@@ -128,7 +177,7 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 	}
 	nsn := types.NamespacedName{
@@ -145,7 +194,11 @@ func (e *ctrlClients) Observe(ctx context.Context, mg resource.Managed) (managed
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
-	got := cm.Data["cloud-init"]
+	key := cr.Spec.WriteCloudInitToRef.Key
+	if key == "" {
+		key = configMapKey
+	}
+	got := cm.Data[key]
 
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(clients.IsErrorNotFound, err), errNotRender)
@@ -211,7 +264,7 @@ func (e *ctrlClients) Delete(ctx context.Context, mg resource.Managed) error {
 	nsn := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Spec.WriteCloudInitToRef.Name,
-			Namespace: cr.GetNamespace(),
+			Namespace: cr.Spec.WriteCloudInitToRef.Namespace,
 		},
 	}
 
