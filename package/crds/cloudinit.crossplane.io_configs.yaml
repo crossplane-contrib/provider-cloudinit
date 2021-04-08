@@ -59,7 +59,7 @@ spec:
               forProvider:
                 description: ConfigParameters are the configurable fields of a Config.
                 properties:
-                  base64_encode:
+                  base64Encode:
                     type: boolean
                   boundary:
                     description: Boundary is the optional mime-boundary. It defaults to a random UUIDv4
@@ -87,11 +87,11 @@ spec:
                           type: object
                         content:
                           type: string
-                        content_type:
+                        contentType:
                           type: string
                         filename:
                           type: string
-                        merge_type:
+                        mergeType:
                           type: string
                         secretKeyRef:
                           description: DataKeySelector defines required spec to access a key of a configmap or secret

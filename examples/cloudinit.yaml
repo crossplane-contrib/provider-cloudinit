@@ -9,16 +9,19 @@ spec:
     key: "cloud-init"
   forProvider:
     boundary: MIMEBOUNDARY
-    part:
+    parts:
     - configMapKeyRef:
-      name: foo
-      namespace: default
-      key: foo
-      optional: true
+        name: foo
+        namespace: default
+        key: foo
+        optional: true
+      contentType: "text/x-shellscript"
     - content: |
         #!/bin/sh
         echo "Hello World, from provider-cloudinit"
-    - content: |
+      contentType: "text/x-shellscript"
+    - contentType: "text/cloud-config"
+      content: |
         #cloud-config
         users:
         - default

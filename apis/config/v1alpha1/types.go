@@ -25,10 +25,10 @@ import (
 // PartSpec defines the Part spec for a Config
 type PartSpec struct {
 	ContentFromSource `json:",inline,omitempty"`
-	ContentType       string `json:"content_type,omitempty"`
+	ContentType       string `json:"contentType,omitempty"`
 	Content           string `json:"content,omitempty"`
 	Filename          string `json:"filename,omitempty"`
-	MergeType         string `json:"merge_type,omitempty"`
+	MergeType         string `json:"mergeType,omitempty"`
 }
 
 // NamespacedName represents a namespaced object name
@@ -53,7 +53,7 @@ type ContentFromSource struct {
 // ConfigParameters are the configurable fields of a Config.
 type ConfigParameters struct {
 	Gzip         bool `json:"gzip,omitempty"`
-	Base64Encode bool `json:"base64_encode,omitempty"`
+	Base64Encode bool `json:"base64Encode,omitempty"`
 
 	// Boundary is the optional mime-boundary. It defaults to a random UUIDv4
 	Boundary string `json:"boundary,omitempty"`

@@ -36,7 +36,7 @@ func RenderCloudinitConfig(d CloudConfiger) (string, error) {
 	mimeBoundary := d.Base64Boundary()
 
 	if gzipOutput && !base64Output {
-		return "", fmt.Errorf("base64_encode is mandatory when gzip is enabled")
+		return "", fmt.Errorf("base64Encode is mandatory when gzip is enabled")
 	}
 
 	partsValue := d.GetParts()
